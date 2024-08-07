@@ -1,4 +1,3 @@
-// data.ts
 export interface ImageData {
   id: number;
   url: string;
