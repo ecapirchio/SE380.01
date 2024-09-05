@@ -1,14 +1,57 @@
-/*import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
+import { Button, StyleSheet, Text, View } from 'react-native';
+// new import
+import { createStackNavigator } from '@react-navigation/stack';
+import { HomeScreen } from './Homescreen';
+import { DetailsScreen} from './DetailsScreen';
+import { ModalScreen } from './ModalScreen';
+
+
+export type StackParamList = {
+  Home: undefined;
+  Details: { itemId: number; otherParam?: string };
+  Modal: { itemId: number; otherParam?: string };
+};
+
+
+const Stack = createStackNavigator<StackParamList>();
+
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Details" component={DetailsScreen} />
+        <Stack.Screen name="Modal" component={ModalScreen} options={{ presentation: 'modal' }}/>
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
+
+
+
+
+/*export function HomeScreen() {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Text>Home Screen</Text>
+      <Button title="Go to Details" onPress={() => {}} />
+    </View>
+  );
+}*/
+
+
+/*export function DetailsScreen() {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Text>Details Screen</Text>
+      <Button title="Go to Home" onPress={() => {}} />
+    </View>
+  );
+}*/
+
 
 const styles = StyleSheet.create({
   container: {
@@ -18,16 +61,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
-*/
 
+
+/*
 import React, { useState } from 'react';
 import { View, FlatList, Image, TouchableOpacity, TextInput, StyleSheet, Modal } from 'react-native';
 import { imageData, ImageData } from './data';
+
 
 const App = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredImages, setFilteredImages] = useState<ImageData[]>(imageData);
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
+
 
   const handleSearch = (text: string) => {
     setSearchTerm(text);
@@ -35,19 +81,23 @@ const App = () => {
     setFilteredImages(filtered);
   };
 
+
   const handleImagePress = (image: ImageData) => {
     setSelectedImage(image);
   };
 
+
   const handleCloseModal = () => {
     setSelectedImage(null);
   };
+
 
   const renderImage = ({ item }: { item: ImageData }) => (
     <TouchableOpacity onPress={() => handleImagePress(item)}>
       <Image source={{ uri: item.url }} style={styles.image} />
     </TouchableOpacity>
   );
+
 
   return (
     <View style={styles.container}>
@@ -71,6 +121,7 @@ const App = () => {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -101,4 +152,6 @@ const styles = StyleSheet.create({
   },
 });
 
-export default App;
+
+export default App; */
+
