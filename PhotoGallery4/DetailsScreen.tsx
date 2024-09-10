@@ -2,6 +2,7 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { Button, View, Text } from 'react-native';
 import { StackParamList } from './App';
 import { StackNavigationProp } from '@react-navigation/stack';
+import React from 'react';
 
 type HomeScreenNavigationProp = StackNavigationProp<StackParamList, 'Home'>;
 

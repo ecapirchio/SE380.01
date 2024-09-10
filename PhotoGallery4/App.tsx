@@ -1,9 +1,10 @@
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Button, StyleSheet, Text, View } from 'react-native';
 // new import
 import { createStackNavigator } from '@react-navigation/stack';
-import { HomeScreen } from './Homescreen';
+import { HomeScreen } from './HomeScreen';
 import { DetailsScreen} from './DetailsScreen';
 import { ModalScreen } from './ModalScreen';
 
@@ -150,8 +151,4 @@ const styles = StyleSheet.create({
     width: '90%',
     height: '90%',
   },
-});
-
-
-export default App; */
-
+});*/

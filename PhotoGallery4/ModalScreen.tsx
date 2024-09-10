@@ -2,6 +2,7 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { StackParamList } from './App';
 import { Button, View, Text } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import React from 'react';
 
 type DetailsScreenNavigationProp = StackNavigationProp<StackParamList, 'Details'>;
 
