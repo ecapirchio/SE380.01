@@ -1,7 +1,6 @@
-// App.tsx
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import AppNavigator from './navigation/AppNavigator'; // Adjust the path as necessary
+import AppNavigator from './navigation/AppNavigator';
 
 const App = () => {
   return (
