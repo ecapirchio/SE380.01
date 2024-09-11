@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import Ionicons from '@expo/vector-icons/Ionicons'; // Import Ionicons
-import { imageData, ImageData } from './data'; // Assuming your image data is in a separate file
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFetchWeather } from './useFetch'; // Custom hook for fetching weather data
+import { imageData, ImageData } from './data';
 
 // Create Navigators
 const Drawer = createDrawerNavigator();
@@ -76,7 +77,6 @@ function TabNavigator() {
             iconName = focused ? 'reader' : 'reader-outline';
           }
 
-          // Return the Ionicons component with the icon name
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: 'tomato',
@@ -138,11 +138,70 @@ function PhotoGalleryScreen() {
   );
 }
 
-function WeatherAppScreen() {
+// Current Weather Screen
+function CurrentWeatherScreen() {
+  const { data, loading, error } = useFetchWeather('current.json?q=RhodeIsland'); // Replace YOUR_LOCATION with an actual location
+
+  if (loading) return <ActivityIndicator size="large" />;
+  if (error) return <Text>{error}</Text>;
+
+  // Ensure data is defined before accessing its properties
+  if (!data || !data.location || !data.current) {
+    return <Text>Weather data not available</Text>;
+  }
+
   return (
     <View style={styles.container}>
-      <Text>Weather App (Coming Soon)</Text>
+      <Text>Location: {data.location.name}</Text>
+      <Text>{data.current.condition.text}</Text>
+      <Image source={{ uri: `https:${data.current.condition.icon}` }} style={styles.icon} />
+      <Text>Temperature: {data.current.temp_c}°C</Text>
     </View>
+  );
+}
+
+
+// Forecast Component (Reusable)
+function ForecastComponent({ days }: { days: number }) {
+  const { data, loading, error } = useFetchWeather(`forecast.json?q=RhodeIsland&days=${days}`);
+
+  if (loading) return <ActivityIndicator size="large" />;
+  if (error) return <Text>{error}</Text>;
+
+  return (
+    <View style={styles.container}>
+      {data.forecast.forecastday.map((day: any, index: number) => (
+        <View key={index}>
+          <Text>Date: {day.date}</Text>
+          <Text>Condition: {day.day.condition.text}</Text>
+          <Image source={{ uri: `https:${day.day.condition.icon}` }} style={styles.icon} />
+          <Text>Max Temp: {day.day.maxtemp_c}°C</Text>
+          <Text>Min Temp: {day.day.mintemp_c}°C</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// Forecast Screen with Tabs
+function ForecastScreen() {
+  return (
+    <Tab.Navigator>
+      <Tab.Screen name="3 Days" children={() => <ForecastComponent days={3} />} />
+      <Tab.Screen name="7 Days" children={() => <ForecastComponent days={7} />} />
+    </Tab.Navigator>
+  );
+}
+
+// WeatherApp Screen with Left Drawer
+function WeatherAppScreen() {
+  const LeftDrawer = createDrawerNavigator();
+
+  return (
+    <LeftDrawer.Navigator initialRouteName="CurrentWeather">
+      <LeftDrawer.Screen name="CurrentWeather" component={CurrentWeatherScreen} options={{ title: 'Current Weather' }} />
+      <LeftDrawer.Screen name="Forecast" component={ForecastScreen} options={{ title: 'Forecast' }} />
+    </LeftDrawer.Navigator>
   );
 }
 
@@ -151,9 +210,9 @@ export default function App() {
   return (
     <NavigationContainer>
       <Drawer.Navigator
-        screenOptions={({ route }) => ({
+        screenOptions={({ route }) => ({ drawerPosition: 'right',
           drawerIcon: ({ focused, color, size }) => {
-            let iconName: any;
+            let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
 
             if (route.name === 'Home') {
               iconName = focused ? 'home' : 'home-outline';
@@ -165,7 +224,6 @@ export default function App() {
               iconName = focused ? 'cloudy' : 'cloud-outline';
             }
 
-            // Return the Ionicons component with the icon name
             return <Ionicons name={iconName} size={size} color={color} />;
           },
         })}
@@ -173,7 +231,7 @@ export default function App() {
         <Drawer.Screen name="Home" component={TabNavigator} />
         <Drawer.Screen name="Details" component={DetailsScreen} />
         <Drawer.Screen name="PhotoGallery" component={PhotoGalleryScreen} />
-        <Drawer.Screen name="WeatherApp" component={WeatherAppScreen} />
+        <Drawer.Screen name="WeatherApp" component={WeatherAppScreen} options={{ title: 'Weather App' }} />
       </Drawer.Navigator>
     </NavigationContainer>
   );
@@ -208,5 +266,9 @@ const styles = StyleSheet.create({
   modalImage: {
     width: '90%',
     height: '90%',
+  },
+  icon: {
+    width: 50,
+    height: 50,
   },
 });
