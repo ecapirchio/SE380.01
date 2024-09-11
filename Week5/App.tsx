@@ -1,96 +1,78 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import * as Battery from 'expo-battery';
 import { Accelerometer } from 'expo-sensors';
 
 export default function App() {
-  // Battery level state
-  const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
-  const [batterySubscription, setBatterySubscription] = useState<any>(null);
+  const [batteryLevel, setBatteryLevel] = useState<number | null>(null); // Real battery level
+  const [fakeBatteryLevel, setFakeBatteryLevel] = useState<number>(0); // Fake battery level for "charging"
+  const [accelerometerData, setAccelerometerData] = useState({ x: 0, y: 0, z: 0 });
+  const [subscription, setSubscription] = useState<any>(null);
 
-  // Accelerometer state
-  const [{ x, y, z }, setData] = useState({
-    x: 0,
-    y: 0,
-    z: 0,
-  });
-  const [accelerometerSubscription, setAccelerometerSubscription] = useState<any>(null);
+  useEffect(() => {
+    const fetchBatteryLevel = async () => {
+      const level = await Battery.getBatteryLevelAsync();
+      setBatteryLevel(level);
+      setFakeBatteryLevel(level * 100); // Convert to percentage for the progress bar
+    };
+    fetchBatteryLevel();
+    _subscribe();
 
-  // Battery level subscription
-  const _subscribeToBattery = async () => {
-    const batteryLevel = await Battery.getBatteryLevelAsync();
-    setBatteryLevel(batteryLevel);
+    return () => _unsubscribe();
+  }, []);
 
-    setBatterySubscription(
-      Battery.addBatteryLevelListener(({ batteryLevel }) => {
-        setBatteryLevel(batteryLevel);
-        console.log('Battery Level changed!', batteryLevel);
+  const handleShake = () => {
+    const totalForce = Math.sqrt(
+      accelerometerData.x * accelerometerData.x +
+      accelerometerData.y * accelerometerData.y +
+      accelerometerData.z * accelerometerData.z
+    );
+
+    // Adjust the threshold if necessary to make shake detection easier
+    if (totalForce > 1.0) { // You can adjust this value (e.g., 1.5-2) to make it more sensitive
+      console.log('Shake detected!', totalForce);
+      setFakeBatteryLevel((prevLevel) => Math.min(prevLevel + 5, 100));
+    }
+  };
+
+  const _subscribe = () => {
+    Accelerometer.setUpdateInterval(200); // Update every 200ms
+    setSubscription(
+      Accelerometer.addListener((data) => {
+        setAccelerometerData(data);
+        handleShake(); // Check for shake on every update
       })
     );
   };
 
-  const _unsubscribeFromBattery = useCallback(() => {
-    if (batterySubscription) {
-      batterySubscription.remove();
-      setBatterySubscription(null);
-    }
-  }, [batterySubscription]);
-
-  // Accelerometer functions
-  const _subscribeToAccelerometer = () => {
-    setAccelerometerSubscription(Accelerometer.addListener(setData));
+  const _unsubscribe = () => {
+    subscription && subscription.remove();
+    setSubscription(null);
   };
 
-  const _unsubscribeFromAccelerometer = () => {
-    if (accelerometerSubscription) {
-      accelerometerSubscription.remove();
-      setAccelerometerSubscription(null);
-    }
+  const batteryColor = () => {
+    if (fakeBatteryLevel < 20) return 'red';
+    if (fakeBatteryLevel < 50) return 'yellow';
+    return 'green';
   };
-
-  const _slow = () => Accelerometer.setUpdateInterval(1000);
-  const _fast = () => Accelerometer.setUpdateInterval(16);
-
-  // Subscribe to both battery and accelerometer once on mount
-  useEffect(() => {
-    _subscribeToBattery();
-    _subscribeToAccelerometer();
-
-    // Clean up subscriptions on unmount
-    return () => {
-      _unsubscribeFromBattery();
-      _unsubscribeFromAccelerometer();
-    };
-  }, []); // Empty dependency array to only run on mount
 
   return (
     <View style={styles.container}>
-      {/* Battery Level Display */}
-      <Text style={styles.text}>
-        Current Battery Level: {batteryLevel !== null ? (batteryLevel * 100).toFixed(0) + '%' : 'Loading...'}
-      </Text>
+      {/* Display the fake battery level percentage */}
+      <Text style={styles.batteryText}>Battery Level: {fakeBatteryLevel.toFixed(0)}%</Text>
 
-      {/* Accelerometer Display */}
-      <Text style={styles.text}>Accelerometer: (in gs where 1g = 9.81 m/s^2)</Text>
-      <Text style={styles.text}>x: {x.toFixed(2)}</Text>
-      <Text style={styles.text}>y: {y.toFixed(2)}</Text>
-      <Text style={styles.text}>z: {z.toFixed(2)}</Text>
+      {/* Display message when fully charged */}
+      {fakeBatteryLevel === 100 && <Text style={styles.fullChargedText}>Device fully charged!</Text>}
 
-      {/* Accelerometer Control Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          onPress={accelerometerSubscription ? _unsubscribeFromAccelerometer : _subscribeToAccelerometer}
-          style={styles.button}
-        >
-          <Text>{accelerometerSubscription ? 'On' : 'Off'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={_slow} style={[styles.button, styles.middleButton]}>
-          <Text>Slow</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={_fast} style={styles.button}>
-          <Text>Fast</Text>
-        </TouchableOpacity>
+      {/* Custom Battery Progress Bar */}
+      <View style={styles.batteryContainer}>
+        <View style={[styles.batteryProgress, { width: `${fakeBatteryLevel}%`, backgroundColor: batteryColor() }]} />
       </View>
+
+      {/* Debugging: display accelerometer data */}
+      <Text style={styles.debugText}>
+        Accelerometer Data - x: {accelerometerData.x.toFixed(2)}, y: {accelerometerData.y.toFixed(2)}, z: {accelerometerData.z.toFixed(2)}
+      </Text>
     </View>
   );
 }
@@ -99,27 +81,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  text: {
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    marginTop: 15,
-  },
-  button: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#eee',
-    padding: 10,
+    padding: 20,
   },
-  middleButton: {
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: '#ccc',
+  batteryText: {
+    fontSize: 20,
+    marginBottom: 20,
+  },
+  fullChargedText: {
+    fontSize: 18,
+    color: 'green',
+    marginBottom: 20,
+  },
+  batteryContainer: {
+    width: '80%',
+    height: 40,
+    justifyContent: 'center',
+    backgroundColor: '#ddd',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  batteryProgress: {
+    height: '100%',
+  },
+  debugText: {
+    marginTop: 20,
+    fontSize: 14,
+    color: '#555',
   },
 });

@@ -1,33 +1,14 @@
-/*import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
-*/
-
-import React, { useState } from 'react';
-import { View, FlatList, Image, TouchableOpacity, TextInput, StyleSheet, Modal } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, FlatList, Image, TouchableOpacity, TextInput, StyleSheet, Modal, Animated } from 'react-native';
 import { imageData, ImageData } from './data';
 
 const App = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredImages, setFilteredImages] = useState<ImageData[]>(imageData);
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
+
+  // Create an animated value to track the scroll position
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const handleSearch = (text: string) => {
     setSearchTerm(text);
@@ -43,11 +24,28 @@ const App = () => {
     setSelectedImage(null);
   };
 
-  const renderImage = ({ item }: { item: ImageData }) => (
-    <TouchableOpacity onPress={() => handleImagePress(item)}>
-      <Image source={{ uri: item.url }} style={styles.image} />
-    </TouchableOpacity>
-  );
+  const renderItem = ({ item, index }: { item: ImageData; index: number }) => {
+    const inputRange = [
+      (index - 1) * 150,  // Adjust these values based on how fast you want the scale change to happen
+      index * 150,
+      (index + 1) * 150
+    ];
+
+    const scale = scrollY.interpolate({
+      inputRange: [0, 300],
+      outputRange: [1, 0.5],  // Start at full size, shrink to 0.5x, then back to full size
+      extrapolate: 'clamp',  // Ensures values don't go beyond the specified range
+    });
+
+    return (
+      <TouchableOpacity onPress={() => handleImagePress(item)}>
+        <Animated.Image
+          source={{ uri: item.url }}
+          style={[styles.image, { transform: [{ scale }] }]}
+        />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -57,11 +55,15 @@ const App = () => {
         value={searchTerm}
         onChangeText={handleSearch}
       />
-      <FlatList
+      <Animated.FlatList
         data={filteredImages}
-        renderItem={renderImage}
+        renderItem={renderItem}
         keyExtractor={item => item.id.toString()}
         numColumns={3}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
       />
       <Modal visible={!!selectedImage} transparent={true}>
         <TouchableOpacity style={styles.modalContainer} onPress={handleCloseModal}>
