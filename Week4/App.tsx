@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, TextInput, Modal, ActivityIndicator, Button } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { BarCodeScanner, BarCodeScannerResult } from 'expo-barcode-scanner';
 import { useFetchWeather } from './useFetch'; // Custom hook for fetching weather data
 import { imageData, ImageData } from './data';
 
@@ -13,6 +14,7 @@ import { imageData, ImageData } from './data';
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+const BarCodeStack = createStackNavigator(); // New Stack for Barcode Scanner
 
 // Home Screen component
 function HomeScreen() {
@@ -205,12 +207,61 @@ function WeatherAppScreen() {
   );
 }
 
+// BarCode Scanner Screen component
+function BarCodeScannerScreen() {
+  const [hasPermission, setHasPermission] = useState<null | boolean>(null);
+  const [scanned, setScanned] = useState(false);
+
+  useEffect(() => {
+    const getBarCodeScannerPermissions = async () => {
+      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      setHasPermission(status === 'granted');
+    };
+
+    getBarCodeScannerPermissions();
+  }, []);
+
+  // Add typing for the event parameters
+  const handleBarCodeScanned = ({ type, data }: BarCodeScannerResult) => {
+    setScanned(true);
+    alert(`Bar code with type ${type} and data ${data} has been scanned!`);
+  };
+
+  if (hasPermission === null) {
+    return <Text>Requesting for camera permission</Text>;
+  }
+  if (hasPermission === false) {
+    return <Text>No access to camera</Text>;
+  }
+
+  return (
+    <View style={styles.container}>
+      <BarCodeScanner
+        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {scanned && <Button title={'Tap to Scan Again'} onPress={() => setScanned(false)} />}
+    </View>
+  );
+}
+
+// BarCode Stack Navigator
+function BarCodeNavigator() {
+  return (
+    <BarCodeStack.Navigator>
+      <BarCodeStack.Screen name="BarCodeScanner" component={BarCodeScannerScreen} options={{ title: 'Barcode Scanner' }} />
+    </BarCodeStack.Navigator>
+  );
+}
+
 // Main App component with Drawer and Tab Navigators
 export default function App() {
   return (
     <NavigationContainer>
       <Drawer.Navigator
-        screenOptions={({ route }) => ({ drawerPosition: 'right',
+        initialRouteName="BarCode" // Set this to the screen you're currently working on (optional)
+        screenOptions={({ route }) => ({
+          drawerPosition: 'right', // Right-side drawer
           drawerIcon: ({ focused, color, size }) => {
             let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
 
@@ -222,6 +273,8 @@ export default function App() {
               iconName = focused ? 'images' : 'images-outline';
             } else if (route.name === 'WeatherApp') {
               iconName = focused ? 'cloudy' : 'cloud-outline';
+            } else if (route.name === 'BarCode') {
+              iconName = focused ? 'barcode' : 'barcode-outline';
             }
 
             return <Ionicons name={iconName} size={size} color={color} />;
@@ -232,6 +285,7 @@ export default function App() {
         <Drawer.Screen name="Details" component={DetailsScreen} />
         <Drawer.Screen name="PhotoGallery" component={PhotoGalleryScreen} />
         <Drawer.Screen name="WeatherApp" component={WeatherAppScreen} options={{ title: 'Weather App' }} />
+        <Drawer.Screen name="BarCode" component={BarCodeNavigator} options={{ title: 'Barcode Scanner' }} />
       </Drawer.Navigator>
     </NavigationContainer>
   );
@@ -270,5 +324,8 @@ const styles = StyleSheet.create({
   icon: {
     width: 50,
     height: 50,
+  },
+  absoluteFillObject: {
+    flex: 1,
   },
 });
