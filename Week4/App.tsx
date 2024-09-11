@@ -7,14 +7,17 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { BarCodeScanner, BarCodeScannerResult } from 'expo-barcode-scanner';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // To store favorites
 import { useFetchWeather } from './useFetch'; // Custom hook for fetching weather data
-import { imageData, ImageData } from './data';
+import { RouteProp } from '@react-navigation/native';
+import { imageData, ImageData } from './data'; // Assuming data contains imageData
+import { StackScreenProps } from '@react-navigation/stack';
 
 // Create Navigators
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
-const BarCodeStack = createStackNavigator(); // New Stack for Barcode Scanner
+const BarCodeStack = createStackNavigator();
 
 // Home Screen component
 function HomeScreen() {
@@ -71,7 +74,7 @@ function TabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName: any;
+          let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
 
           if (route.name === 'HomeTab') {
             iconName = focused ? 'home' : 'home-outline';
@@ -142,12 +145,11 @@ function PhotoGalleryScreen() {
 
 // Current Weather Screen
 function CurrentWeatherScreen() {
-  const { data, loading, error } = useFetchWeather('current.json?q=RhodeIsland'); // Replace YOUR_LOCATION with an actual location
+  const { data, loading, error } = useFetchWeather('current.json?q=RhodeIsland');
 
   if (loading) return <ActivityIndicator size="large" />;
   if (error) return <Text>{error}</Text>;
 
-  // Ensure data is defined before accessing its properties
   if (!data || !data.location || !data.current) {
     return <Text>Weather data not available</Text>;
   }
@@ -161,7 +163,6 @@ function CurrentWeatherScreen() {
     </View>
   );
 }
-
 
 // Forecast Component (Reusable)
 function ForecastComponent({ days }: { days: number }) {
@@ -208,7 +209,7 @@ function WeatherAppScreen() {
 }
 
 // BarCode Scanner Screen component
-function BarCodeScannerScreen() {
+function BarCodeScannerScreen({ navigation, route }: { navigation: any; route: RouteProp<any, any> }) {
   const [hasPermission, setHasPermission] = useState<null | boolean>(null);
   const [scanned, setScanned] = useState(false);
 
@@ -221,10 +222,9 @@ function BarCodeScannerScreen() {
     getBarCodeScannerPermissions();
   }, []);
 
-  // Add typing for the event parameters
   const handleBarCodeScanned = ({ type, data }: BarCodeScannerResult) => {
     setScanned(true);
-    alert(`Bar code with type ${type} and data ${data} has been scanned!`);
+    navigation.navigate('ProductDetail', { productUrl: data });
   };
 
   if (hasPermission === null) {
@@ -245,23 +245,114 @@ function BarCodeScannerScreen() {
   );
 }
 
+// Define a type for the Product object
+type Product = {
+  id: string;
+  name: string;
+  description: string;
+};
+
+
+// Define a type for your stack navigator's route params
+type RootStackParamList = {
+  BarCodeScanner: undefined;
+  ProductDetail: { productUrl: string };
+};
+
+// Product Detail Screen
+function ProductDetailScreen({
+  navigation,
+  route,
+}: StackScreenProps<RootStackParamList, 'ProductDetail'>) {
+  const { productUrl } = route.params; // Now TypeScript knows productUrl exists
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      const response = await fetch(`${productUrl}.json`);
+      const data = await response.json();
+      setProduct(data);
+      checkFavorite(data);
+    };
+    fetchProduct();
+  }, [productUrl]);
+
+  const checkFavorite = async (product: Product) => {
+    const favorites = await AsyncStorage.getItem('favorites');
+    if (favorites) {
+      const favoritesArray: Product[] = JSON.parse(favorites);
+      const isFavorited = favoritesArray.some((fav) => fav.id === product.id);
+      setIsFavorite(isFavorited);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    let favorites = await AsyncStorage.getItem('favorites');
+    let favoritesArray: Product[] = favorites ? JSON.parse(favorites) : [];
+
+    if (isFavorite) {
+      favoritesArray = favoritesArray.filter((fav) => fav.id !== product?.id);
+      setIsFavorite(false);
+    } else {
+      if (product) {
+        favoritesArray.push(product);
+        setIsFavorite(true);
+      }
+    }
+    await AsyncStorage.setItem('favorites', JSON.stringify(favoritesArray));
+  };
+
+  if (!product) {
+    return <Text>Loading product...</Text>;
+  }
+
+  return (
+    <View style={{ padding: 20 }}>
+      <TouchableOpacity onPress={() => navigation.goBack()}>
+        <Text>{'< Back'}</Text>
+      </TouchableOpacity>
+      <Text style={{ fontSize: 24 }}>{product.name}</Text>
+      <Text>{product.description}</Text>
+      <TouchableOpacity onPress={toggleFavorite}>
+        <Ionicons
+          name={isFavorite ? 'heart' : 'heart-outline'}
+          size={32}
+          color={isFavorite ? 'red' : 'gray'}
+        />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // BarCode Stack Navigator
 function BarCodeNavigator() {
   return (
     <BarCodeStack.Navigator>
-      <BarCodeStack.Screen name="BarCodeScanner" component={BarCodeScannerScreen} options={{ title: 'Barcode Scanner' }} />
+      <BarCodeStack.Screen
+        name="BarCodeScanner"
+        component={BarCodeScannerScreen}
+        options={{ title: 'Barcode Scanner' }}
+      />
+      <BarCodeStack.Screen
+        name="ProductDetail"
+        component={ProductDetailScreen}
+        options={{ title: 'Product Detail' }}
+      />
     </BarCodeStack.Navigator>
   );
 }
+
+
 
 // Main App component with Drawer and Tab Navigators
 export default function App() {
   return (
     <NavigationContainer>
       <Drawer.Navigator
-        initialRouteName="BarCode" // Set this to the screen you're currently working on (optional)
+        initialRouteName="BarCode"
         screenOptions={({ route }) => ({
-          drawerPosition: 'right', // Right-side drawer
+          drawerPosition: 'right',
           drawerIcon: ({ focused, color, size }) => {
             let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
 
@@ -324,8 +415,5 @@ const styles = StyleSheet.create({
   icon: {
     width: 50,
     height: 50,
-  },
-  absoluteFillObject: {
-    flex: 1,
   },
 });
