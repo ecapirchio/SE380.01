@@ -13,14 +13,12 @@ type Recipe = {
   instructions?: string;
 };
 
-// Define the navigation parameters for your stack navigator
 type RootStackParamList = {
   AllRecipes: undefined;
   MyRecipes: undefined;
   RecipeDetail: { recipe: Recipe };
 };
 
-// Define props type using StackScreenProps from react-navigation/stack
 type RecipeDetailProps = StackScreenProps<RootStackParamList, 'RecipeDetail'>;
 
 const RecipeDetailScreen = ({ route }: RecipeDetailProps) => {
